@@ -1,0 +1,26 @@
+{
+    "[markdown]": {
+        "editor.formatOnSave": false
+    },
+    "[toml]": {
+        "editor.formatOnSave": true
+    },
+    "[rust]": {
+        "editor.formatOnSave": true
+    },
+    "rust-analyzer.cargo.sysroot": "discover",
+    "rust-analyzer.check.allTargets": false,
+    "rust-analyzer.check.command": "clippy",
+
+    // Uncomment working platform target
+    // "rust-analyzer.cargo.target": "thumbv7em-none-eabihf",
+    "rust-analyzer.cargo.target": "thumbv8m.main-none-eabihf",
+
+    // Add new platforms here
+    "rust-analyzer.linkedProjects": [
+        "platform/platform-common/Cargo.toml",
+        "platform/dev-imxrt/Cargo.toml",
+        "platform/dev-npcx/Cargo.toml",
+        "platform/dev-qemu/Cargo.toml",
+    ]
+}

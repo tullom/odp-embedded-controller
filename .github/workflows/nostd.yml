@@ -1,0 +1,49 @@
+# This workflow checks whether the library is able to run without the std library (e.g., embedded).
+# This entire file should be removed if this crate does not support no-std. See check.yml for
+# information about how the concurrency cancellation and workflow triggering works
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+name: no-std
+
+jobs:
+  nostd:
+    runs-on: ubuntu-latest
+    name: ${{ matrix.platform }} / ${{ matrix.target }}
+
+    strategy:
+      matrix:
+        include:
+          - platform: dev-imxrt
+            target: thumbv8m.main-none-eabihf
+          - platform: dev-npcx
+            target: thumbv7em-none-eabihf
+          - platform: dev-qemu
+            target: riscv32imac-unknown-none-elf
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: rustup target add ${{ matrix.target }}
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Show variable
+        run: echo ${{ env.TOKEN }}
+
+      - name: cargo check
+        working-directory: platform/${{ matrix.platform }}
+        run: cargo check --locked --all-features

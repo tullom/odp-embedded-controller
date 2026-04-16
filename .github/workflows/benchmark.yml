@@ -1,0 +1,62 @@
+# Runs whenever a PR is accepted and merged into main
+name: benchmark
+on:
+  push:
+    branches:
+      - main
+
+# Needs to be able to write to the `gh-pages` branch and create deployments
+permissions:
+  contents: write
+  deployments: write
+
+jobs:
+  benchmark:
+    name: binsize / ${{ matrix.platform }}
+    runs-on: ubuntu-latest
+    strategy:
+        matrix:
+            # dev-qemu is intentionally excluded from binsize benchmarks: it targets QEMU virt
+            # and uses semihosting, so its ELF section layout doesn't represent real flash/RAM
+            # footprint the way the SoC-backed platforms do.
+            platform: ["dev-imxrt", "dev-npcx"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            submodules: true
+            ssh-key: ${{ secrets.DEPLOY_KEY }}
+      - name: Install stable + tools
+        uses: dtolnay/rust-toolchain@stable
+        with:
+            components: llvm-tools-preview
+      - run: cargo install flip-link
+      - run: cargo install cargo-binutils
+
+      - name: Get `cargo size` output and other useful info
+        working-directory: platform/${{ matrix.platform }}
+        # BIN_SIZE is .text (cargo size includes .rodata and other sections that end up in flash here) + .data (in KiB)
+        # RAM_SIZE is .data + .bss (in KiB)
+        # NUM_DEPS is simply the unique count of normal (non-build/dev) deps reported by cargo tree (including transitive deps)
+        # rustc version is included since binary size can change depending on toolchain
+        run: |
+          SIZE_OUTPUT=$(cargo size --release | tail -n 1)
+          BIN_SIZE=$(echo "$SIZE_OUTPUT" | awk '{printf "%.2f", ($1+$2)/1024}')
+          RAM_SIZE=$(echo "$SIZE_OUTPUT" | awk '{printf "%.2f", ($2+$3)/1024}')
+          NUM_DEPS=$(cargo tree -e normal | uniq | wc -l)
+          RUSTC_VERSION=$(rustc --version)
+          echo "[{\"name\":\"Binary Size\",\"unit\":\"KiB\",\"value\":$BIN_SIZE,\"extra\":\"RAM Size: $RAM_SIZE KiB\nDependency Count: $NUM_DEPS\nVersion: $RUSTC_VERSION\"}]" > output.txt
+
+      - name: Store binsize result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: ${{ matrix.platform }}
+          tool: 'customSmallerIsBetter'
+          output-file-path: platform/${{ matrix.platform }}/output.txt
+          benchmark-data-dir-path: "dev/binsize"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: false
+
+      # Can't pass DEPLOY_KEY directly to benchmark action so manually perform push here
+      - name: Push and deploy to gh-pages
+        run: |
+          git -c user.name=github-action-benchmark -c user.email=github@users.noreply.github.com -c http.https://github.com/.extraheader= push origin gh-pages:gh-pages --no-verify

@@ -1,0 +1,128 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Probe-Rs Build (debug)",
+            "type": "process",
+            "command": "cargo",
+            "args": ["build", "--bin", "${input:platform}"],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/platform/${input:platform}"
+            },
+            "group": {
+                "kind": "build",
+            }
+        },{
+            "label": "Probe-Rs Build (release)",
+            "type": "process",
+            "command": "cargo",
+            "args": ["build", "--bin", "${input:platform}","--release"],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/platform/${input:platform}"
+            },
+            "group": {
+                "kind": "build",
+            }
+        },
+        {
+            "label": "Cargo Build (debug)",
+            "type": "process",
+            "command": "cargo",
+            "args": [
+                "build",
+                "--bin",
+                "${input:platform-prompt}"
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/platform/${input:platform-prompt}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Cargo Build (release)",
+            "type": "process",
+            "command": "cargo",
+            "args": [
+                "build",
+                "--bin",
+                "${input:platform-prompt}",
+                "--release"
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/platform/${input:platform-prompt}"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Cargo Run (debug)",
+            "type": "process",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--bin",
+                "${input:platform-prompt}"
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/platform/${input:platform-prompt}"
+            },
+            "group": "none"
+        },
+        {
+            "label": "Cargo Run (release)",
+            "type": "process",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--bin",
+                "${input:platform-prompt}",
+                "--release"
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/platform/${input:platform-prompt}"
+            },
+            "group": "none"
+        },
+        {
+            "label": "Cargo Clean",
+            "type": "process",
+            "command": "cargo",
+            "args": ["clean"],
+            "problemMatcher": [],
+            "group": "build"
+        },
+    ],
+    "inputs": [
+        {
+            "id": "platform",
+            "type": "command",
+            "command": "extension.commandvariable.remember",
+            "args": { "key": "platform" }
+        },
+        {
+            "id": "platform-prompt",
+            "type": "promptString",
+            "description": "Enter the name of the platform to build",
+        }
+    ]
+}

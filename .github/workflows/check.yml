@@ -1,0 +1,313 @@
+# Note: New platforms should be added here when they are created
+# Unfortunately can't find an easy way to declare the list of platforms once, so will need to add
+# it to a few places manually.
+#
+# This workflow runs whenever a PR is opened or updated, or a commit is pushed to main. It runs
+# several checks:
+# - fmt: checks that the code is formatted according to rustfmt
+# - clippy: checks that the code does not contain any clippy warnings
+# - doc: checks that the code can be documented without errors
+# - hack: check combinations of feature flags
+# - msrv: check that the msrv specified in the crate is correct
+permissions:
+  contents: read
+
+# This configuration allows maintainers of this repo to create a branch and pull request based on
+# the new branch. Restricting the push trigger to the main branch ensures that the PR only gets
+# built once.
+on:
+
+  push:
+    branches: [main]
+  pull_request:
+
+# If new code is pushed to a PR branch, then cancel in progress workflows for that PR. Ensures that
+# we don't waste CI time, and returns results quicker https://github.com/jonhoo/rust-ci-conf/pull/5
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+
+name: check
+
+jobs:
+
+  fmt:
+    runs-on: ubuntu-latest
+    name: stable / fmt
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ["platform-common", "dev-imxrt", "dev-npcx", "dev-qemu"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: cargo fmt --check
+        working-directory: platform/${{ matrix.platform }}
+        run: cargo fmt --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    name: ${{ matrix.platform }} / ${{ matrix.toolchain }} / clippy
+
+    permissions:
+      contents: read
+      checks: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Get early warning of new lints which are regularly introduced in beta channels.
+        toolchain: [stable]
+        platform: ["dev-imxrt", "dev-npcx", "dev-qemu"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install ${{ matrix.toolchain }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy
+
+      - name: cargo clippy
+        working-directory: platform/${{ matrix.platform }}
+        run: cargo clippy --locked
+  # Enable once we have a released crate
+  # semver:
+  #   runs-on: ubuntu-latest
+  #   name: semver
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: true
+  #     - name: Install stable
+  #       uses: dtolnay/rust-toolchain@stable
+  #       with:
+  #         components: rustfmt
+  #     - name: cargo-semver-checks
+  #       uses: obi1kenobi/cargo-semver-checks-action@v2
+
+  doc:
+    # run docs generation on nightly rather than stable. This enables features like
+    # https://doc.rust-lang.org/beta/unstable-book/language-features/doc-cfg.html which allows an
+    # API be documented as only available in some specific platforms.
+    # Nightly is currently broken with optimize_for_size enabled so use stable for now
+    # https://github.com/rust-lang/rust/issues/143804
+    runs-on: ubuntu-latest
+    name: ${{ matrix.platform }} / stable / doc
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: dev-imxrt
+            target: thumbv8m.main-none-eabihf
+          - platform: dev-npcx
+            target: thumbv7em-none-eabihf
+          - platform: dev-qemu
+            target: riscv32imac-unknown-none-elf
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: rustup target add ${{ matrix.target }}
+        run: rustup target add ${{ matrix.target }}
+
+      - name: cargo doc
+        working-directory: platform/${{ matrix.platform }}
+        run: cargo doc --locked --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: --cfg docsrs
+
+  hack:
+    # cargo-hack checks combinations of feature flags to ensure that features are all additive
+    # which is required for feature unification
+    runs-on: ubuntu-latest
+    name: ubuntu / stable / features
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: dev-imxrt
+            target: thumbv8m.main-none-eabihf
+          - platform: dev-npcx
+            target: thumbv7em-none-eabihf
+          - platform: dev-qemu
+            target: riscv32imac-unknown-none-elf
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: rustup target add ${{ matrix.target }}
+        run: rustup target add ${{ matrix.target }}
+
+      - name: cargo install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+
+      # intentionally no target specifier; see https://github.com/jonhoo/rust-ci-conf/pull/4
+      # --feature-powerset runs for every combination of features
+      - name: cargo hack
+        working-directory: platform/${{ matrix.platform }}
+        run: cargo hack --locked --feature-powerset check
+
+  deny:
+    # cargo-deny checks licenses, advisories, sources, and bans for
+    # our dependencies.
+    runs-on: ubuntu-latest
+    name: ubuntu / stable / deny
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ["dev-imxrt", "dev-npcx", "dev-qemu"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cargo install cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          log-level: warn
+          manifest-path: platform/${{ matrix.platform }}/Cargo.toml
+          command: check
+          arguments: --locked --all-features
+
+  machete:
+    # cargo-machete checks for unused dependencies
+    runs-on: ubuntu-latest
+    name: ${{ matrix.platform }} / machete
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ["dev-imxrt", "dev-npcx", "dev-qemu"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cargo install cargo-machete
+        uses: taiki-e/install-action@cargo-machete
+
+      - name: cargo machete
+        working-directory: platform/${{ matrix.platform }}
+        run: cargo machete
+
+  msrv:
+    # check that we can build using the minimal rust version that is specified by this crate
+    runs-on: ubuntu-latest
+    # we use a matrix here just because env can't be used in job names
+    # https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: dev-imxrt
+            target: thumbv8m.main-none-eabihf
+          - platform: dev-npcx
+            target: thumbv7em-none-eabihf
+          - platform: dev-qemu
+            target: riscv32imac-unknown-none-elf
+        msrv: ["1.83"] # We're relying on namespaced-features, which
+                       # was released in 1.60
+                       #
+                       # We also depend on `fixed' which requires rust
+                       # 1.71
+                       #
+                       # Additionally, we depend on embedded-hal-async
+                       # which requires 1.75
+                       #
+                       # embassy-time requires 1.79 due to
+                       # collapse_debuginfo
+                       #
+                       # fixed@1.29.0 requires rustc 1.83
+
+    name: ${{ matrix.platform }} / ubuntu / ${{ matrix.msrv }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install ${{ matrix.msrv }}
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.msrv }}
+
+      - name: rustup target add ${{ matrix.target }}
+        run: rustup target add ${{ matrix.target }}
+
+      - name: cargo +${{ matrix.msrv }} check
+        working-directory: platform/${{ matrix.platform }}
+        run: cargo check --locked
+
+  build:
+    # Explicit build job — verifies `cargo build --locked` succeeds per platform
+    # (mirrors local BUILD-01..03 gates). Clippy already implicitly builds,
+    # but this job makes the buildability gate explicit and independently
+    # traceable to CI-01.
+    runs-on: ubuntu-latest
+    name: ${{ matrix.platform }} / stable / build
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: dev-imxrt
+            target: thumbv8m.main-none-eabihf
+            needs_flip_link: true
+          - platform: dev-npcx
+            target: thumbv7em-none-eabihf
+            needs_flip_link: true
+          - platform: dev-qemu
+            target: riscv32imac-unknown-none-elf
+            needs_flip_link: false
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: rustup target add ${{ matrix.target }}
+        run: rustup target add ${{ matrix.target }}
+
+      - name: cargo install flip-link
+        if: matrix.needs_flip_link
+        uses: taiki-e/install-action@v2
+        with:
+          tool: flip-link
+
+      - name: cargo build --locked
+        working-directory: platform/${{ matrix.platform }}
+        run: cargo build --locked

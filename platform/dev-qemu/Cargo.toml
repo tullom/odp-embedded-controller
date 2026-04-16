@@ -1,0 +1,64 @@
+[package]
+edition = "2021"
+license = "MIT"
+publish = false
+name = "dev-qemu"
+version = "0.1.0"
+
+[[bin]]
+bench = false
+name = "dev-qemu"
+test = false
+
+[profile.release]
+lto = true          # better optimizations
+codegen-units = 1
+debug = true
+opt-level = "z"
+panic = "abort"
+incremental = false
+
+# Optimize dependencies for size but keep root crate unoptimized for better debuggability
+[profile.dev.package."*"]
+opt-level = "z"
+
+# Uncomment to turn off optimization for specific dependency (such as when debugging a service)
+# [profile.dev.package.dependency-name]
+# opt-level = 0
+
+[lints.rust]
+warnings = "deny"
+
+[lints.clippy]
+correctness = "deny"
+perf = "deny"
+suspicious = "deny"
+style = "deny"
+
+# The `embassy_executor::main` macro expands to code referencing `riscv_rt`,
+# but cargo-machete cannot see through the macro. Keep the direct dependency
+# and tell machete to ignore it.
+[package.metadata.cargo-machete]
+ignored = ["riscv-rt"]
+
+[dependencies]
+riscv-rt = "0.17.0"
+
+embassy-qemu-riscv = { git = "https://github.com/kurtjd/qemu-riscv-rs", features = [
+    "defmt",
+] }
+embassy-executor = { version = "0.9.1", features = [
+    "arch-riscv32",
+    "executor-thread",
+    "defmt",
+] }
+
+uart-service = { git = "https://github.com/OpenDevicePartnership/embedded-services", branch = "v0.2.0", features = [
+    "defmt",
+] }
+platform-common = { path = "../platform-common", features = ["mock"] }
+
+static_cell = "2.1.0"
+defmt = "0.3.6"
+defmt-semihosting = "0.3.0"
+semihosting = { version = "0.1", features = ["panic-handler"] }

@@ -1,0 +1,77 @@
+[package]
+edition = "2021"
+license = "MIT"
+publish = false
+name = "dev-npcx"
+version = "0.1.0"
+
+[[bin]]
+bench = false
+name = "dev-npcx"
+test = false
+
+[profile.release]
+lto = true          # better optimizations
+codegen-units = 1
+debug = true
+opt-level = "z"
+panic = "abort"
+incremental = false
+
+# Optimize dependencies for size but keep root crate unoptimized for better debuggability
+[profile.dev.package."*"]
+opt-level = "z"
+
+# Uncomment to turn off optimization for specific dependency (such as when debugging a service)
+# [profile.dev.package.dependency-name]
+# opt-level = 0
+
+[lints.rust]
+warnings = "deny"
+
+[lints.clippy]
+correctness = "deny"
+perf = "deny"
+suspicious = "deny"
+style = "deny"
+
+[dependencies]
+cortex-m = { version = "0.7.7", features = [
+    "critical-section-single-core",
+    "inline-asm",
+] }
+cortex-m-rt = "0.7.5"
+defmt = "1.0"
+defmt-rtt = "1.0"
+embassy-npcx = { git = "https://github.com/OpenDevicePartnership/embassy-npcx", features = [
+    "defmt",
+    "time-driver-mft16-3",
+] }
+embassy-time = { version = "0.5.0", features = [
+    "defmt",
+    "defmt-timestamp-uptime-us",
+    "tick-hz-32_768",
+] }
+embassy-executor = { version = "0.9.1", features = [
+    "arch-cortex-m",
+    "executor-thread",
+    "defmt",
+] }
+embedded-io-async = "0.6"
+panic-probe = { version = "1.0", features = ["print-defmt"] }
+static_cell = "2.1.0"
+uart-service = { git = "https://github.com/OpenDevicePartnership/embedded-services", branch = "v0.2.0", features = [
+    "defmt",
+] }
+platform-common = { path = "../platform-common", features = ["mock"] }
+
+[package.metadata.cargo-machete]
+ignored = ["cortex-m", "cortex-m-rt", "embassy-time"]
+
+# The npcx HAL uses git deps, which causes silent breakage (likely due to time-driver issues)
+# So patch them all to crates.io
+[patch."https://github.com/embassy-rs/embassy"]
+embassy-executor = "=0.9.1"
+embassy-time-driver = "=0.2.1"
+embassy-time-queue-utils = "=0.3.0"
+embassy-time = "=0.5.0"

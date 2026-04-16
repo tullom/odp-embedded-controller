@@ -1,0 +1,10 @@
+[target.riscv32imac-unknown-none-elf]
+runner = "qemu-run --arch riscv32 --machine virt --uart-pty --bios none"
+
+rustflags = ["-C", "link-arg=-Tlink.x", "-C", "link-arg=-Tdefmt.x"]
+
+[build]
+target = "riscv32imac-unknown-none-elf"
+
+[env]
+DEFMT_LOG = "trace"

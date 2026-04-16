@@ -1,0 +1,46 @@
+# This workflow runs every morning at midnight.
+# It updates dependencies for all platforms using cargo update and verifies
+# that builds still succeed with the updated dependencies.
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+name: rolling
+
+jobs:
+  update-and-check:
+    name: cargo-update / update-and-check
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: dev-imxrt
+            target: thumbv8m.main-none-eabihf
+          - platform: dev-npcx
+            target: thumbv7em-none-eabihf
+          - platform: dev-qemu
+            target: riscv32imac-unknown-none-elf
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: rustup target add ${{ matrix.target }}
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Run cargo update
+        working-directory: platform/${{ matrix.platform }}
+        run: cargo update
+
+      - name: cargo check
+        working-directory: platform/${{ matrix.platform }}
+        run: cargo check --locked
