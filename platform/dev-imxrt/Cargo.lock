@@ -371,6 +371,7 @@ dependencies = [
  "panic-probe",
  "platform-common",
  "static_cell",
+ "teleprobe-meta",
  "uart-service",
 ]
 
@@ -1404,6 +1405,12 @@ name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
+
+[[package]]
+name = "teleprobe-meta"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19cef87e93e94b6b486f47dae84076206d13d33836ec07ede3aba58479fc6f14"
 
 [[package]]
 name = "thermal-service"

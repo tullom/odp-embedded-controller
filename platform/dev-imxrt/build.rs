@@ -4,6 +4,10 @@ use std::io::Write;
 use std::path::PathBuf;
 
 fn main() {
+    // Teleprobe for testing (only when the teleprobe-test feature is enabled)
+    if cfg!(feature = "teleprobe-test") {
+        println!("cargo:rustc-link-arg-bins=-Tteleprobe.x");
+    }
     // Put `memory.x` in our output directory and ensure it's
     // on the linker search path.
     let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
