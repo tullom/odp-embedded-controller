@@ -4,6 +4,9 @@
 mod board;
 mod clocks;
 
+#[cfg(feature = "teleprobe-test")]
+teleprobe_meta::target!(b"mcxa266");
+
 use board::Board;
 use defmt::info;
 use defmt_rtt as _;
@@ -33,6 +36,9 @@ async fn main(spawner: Spawner) {
     let board = Board::init(p);
 
     info!("Hello world from MCXA!");
+
+    #[cfg(feature = "teleprobe-test")]
+    cortex_m::asm::bkpt();
 
     let relay = platform_common::mock::init(spawner).await;
     spawner.spawn(uart_service(board.uart, relay).expect("Failed to spawn UART service task"));

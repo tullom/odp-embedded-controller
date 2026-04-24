@@ -324,10 +324,12 @@ dependencies = [
  "defmt 1.1.0",
  "defmt-rtt",
  "embassy-executor",
+ "embassy-futures",
  "embassy-mcxa",
  "panic-probe",
  "platform-common",
  "static_cell",
+ "teleprobe-meta",
  "uart-service",
 ]
 
@@ -1294,6 +1296,12 @@ dependencies = [
  "quote",
  "unicode-ident",
 ]
+
+[[package]]
+name = "teleprobe-meta"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19cef87e93e94b6b486f47dae84076206d13d33836ec07ede3aba58479fc6f14"
 
 [[package]]
 name = "thermal-service"

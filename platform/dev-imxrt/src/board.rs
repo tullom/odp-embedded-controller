@@ -9,8 +9,10 @@ bind_interrupts!(pub struct Irqs {
 ///
 /// This minimal development board provides a UART interface
 /// for ODP service communication.
+#[allow(dead_code)]
 pub struct Board {
     /// UART for ODP service communication.
+    #[allow(dead_code)]
     pub uart: uart::Uart<'static, uart::Async>,
 }
 

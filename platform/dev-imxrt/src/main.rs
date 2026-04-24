@@ -4,7 +4,6 @@
 mod board;
 mod imxrt;
 
-use board::Board;
 use defmt::info;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
@@ -28,7 +27,7 @@ async fn uart_service(uart: uart::Uart<'static, uart::Async>, relay: MockOdpRela
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let p = embassy_imxrt::init(Default::default());
-    let board = Board::init(p);
+    let board = crate::board::Board::init(p);
 
     let relay = platform_common::mock::init(spawner).await;
     spawner.spawn(uart_service(board.uart, relay).expect("Failed to spawn UART service task"));
