@@ -40,6 +40,6 @@ async fn main(spawner: Spawner) {
     #[cfg(feature = "teleprobe-test")]
     cortex_m::asm::bkpt();
 
-    let relay = platform_common::mock::init(spawner).await;
-    spawner.spawn(uart_service(board.uart, relay).expect("Failed to spawn UART service task"));
+    let services = platform_common::mock::init(spawner).await;
+    spawner.spawn(uart_service(board.uart, services.relay).expect("Failed to spawn UART service task"));
 }

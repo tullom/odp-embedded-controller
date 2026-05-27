@@ -64,5 +64,27 @@ platform-common = { path = "../platform-common", features = ["mock"] }
 mimxrt600-fcb = "0.2.0"
 panic-probe = { version = "1.0.0", features = ["print-defmt"] }
 
+[features]
+# When enabled, replace the UART service with a built-in self-test that
+# exercises each mock service (battery, thermal, time-alarm) and logs the
+# results over defmt-rtt.
+test-runner = []
+
 [package.metadata.cargo-machete]
 ignored = ["cortex-m", "cortex-m-rt"]
+
+# Redirect all OpenDevicePartnership/embedded-services crates to the local
+# checkout at D:\work\embedded-services for development.
+[patch."https://github.com/OpenDevicePartnership/embedded-services"]
+embedded-services = { path = "../../../embedded-services/embedded-service" }
+battery-service = { path = "../../../embedded-services/battery-service" }
+battery-service-interface = { path = "../../../embedded-services/battery-service-interface" }
+battery-service-relay = { path = "../../../embedded-services/battery-service-relay" }
+thermal-service = { path = "../../../embedded-services/thermal-service" }
+thermal-service-interface = { path = "../../../embedded-services/thermal-service-interface" }
+thermal-service-relay = { path = "../../../embedded-services/thermal-service-relay" }
+time-alarm-service = { path = "../../../embedded-services/time-alarm-service" }
+time-alarm-service-interface = { path = "../../../embedded-services/time-alarm-service-interface" }
+time-alarm-service-relay = { path = "../../../embedded-services/time-alarm-service-relay" }
+uart-service = { path = "../../../embedded-services/uart-service" }
+odp-service-common = { path = "../../../embedded-services/odp-service-common" }

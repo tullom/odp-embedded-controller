@@ -30,6 +30,6 @@ async fn main(spawner: Spawner) {
     let (p, _mode) = embassy_npcx::init_lpc(embassy_npcx::Config::default());
     let board = Board::init(p);
 
-    let relay = platform_common::mock::init(spawner).await;
-    spawner.spawn(uart_service(board.uart, relay).expect("Failed to spawn UART service task"));
+    let services = platform_common::mock::init(spawner).await;
+    spawner.spawn(uart_service(board.uart, services.relay).expect("Failed to spawn UART service task"));
 }

@@ -1,0 +1,96 @@
+// Mock time-alarm service self-tests.
+//
+// Covers every method on `time_alarm_service_interface::TimeAlarmService`,
+// exercising both `AcPower` and `DcPower` timers for the per-timer methods.
+//
+// Included by `mock/test_runner.rs` via `include!` and so must be a single
+// expression (a block). Expects the following names in scope:
+//   - `runner: &mut TestRunner`
+//   - `tas: &impl time_alarm_service_interface::TimeAlarmService`
+//   - `first: AcpiTimestamp` — clock snapshot taken before a 2s sleep
+//   - `REQUESTED: u32` — timer round-trip value
+//
+// All TimeAlarmService methods are synchronous, hence `time_alarm_tests!`
+// does not emit a `.await`.
+//
+// `TimeAlarmDeviceCapabilities` and `TimerStatus` are bitfields whose
+// accessors are methods (not fields), so checks on them use
+// `pred |x| x.foo()` rather than the `-> field` form.
+
+{
+    use time_alarm_service_interface::{AcpiTimerId, AlarmExpiredWakePolicy, AlarmTimerSeconds};
+
+    time_alarm_tests!(runner, tas; {
+        // ---- get_capabilities ----------------------------------------------
+        // Exercise every accessor on TimeAlarmDeviceCapabilities so a future
+        // bitfield-layout regression is caught immediately.
+        get_capabilities()                          => ( pred |c| c.ac_wake_implemented() );
+        get_capabilities()                          => ( pred |c| c.dc_wake_implemented() );
+        get_capabilities()                          => ( pred |c| c.realtime_implemented() );
+        get_capabilities()                          => ( pred |c| c.realtime_accuracy_in_milliseconds() );
+        get_capabilities()                          => ( pred |c| c.get_wake_status_supported() );
+        get_capabilities()                          => ( pred |c| c.ac_s4_wake_supported() );
+        get_capabilities()                          => ( pred |c| c.ac_s5_wake_supported() );
+        get_capabilities()                          => ( pred |c| c.dc_s4_wake_supported() );
+        get_capabilities()                          => ( pred |c| c.dc_s5_wake_supported() );
+
+        // ---- get_real_time --------------------------------------------------
+        get_real_time()                             => ( is_ok );
+        // Clock must have advanced >=1s since `first` (captured 2s ago).
+        get_real_time() -> |t| t.datetime.unix_timestamp()
+                                .saturating_sub(first.datetime.unix_timestamp())
+                                                    => ( ok_pred |d| *d >= 1 );
+
+        // ---- set_real_time --------------------------------------------------
+        // Round-trip: write back the snapshot we already captured.
+        set_real_time(first)                        => ( is_ok );
+        // After resetting, get_real_time should still succeed and report a
+        // value within a small window of what we just wrote.
+        get_real_time() -> |t| t.datetime.unix_timestamp()
+                                .saturating_sub(first.datetime.unix_timestamp())
+                                                    => ( ok_pred |d| *d <= 5 );
+
+        // ---- set_expired_timer_policy / get_expired_timer_policy -----------
+        // AcPower round-trip
+        set_expired_timer_policy(AcpiTimerId::AcPower, AlarmExpiredWakePolicy::INSTANTLY)
+                                                    => ( is_ok );
+        get_expired_timer_policy(AcpiTimerId::AcPower)
+                                                    => ( eq AlarmExpiredWakePolicy::INSTANTLY );
+        set_expired_timer_policy(AcpiTimerId::AcPower, AlarmExpiredWakePolicy::NEVER)
+                                                    => ( is_ok );
+        get_expired_timer_policy(AcpiTimerId::AcPower)
+                                                    => ( eq AlarmExpiredWakePolicy::NEVER );
+        // DcPower round-trip
+        set_expired_timer_policy(AcpiTimerId::DcPower, AlarmExpiredWakePolicy::INSTANTLY)
+                                                    => ( is_ok );
+        get_expired_timer_policy(AcpiTimerId::DcPower)
+                                                    => ( eq AlarmExpiredWakePolicy::INSTANTLY );
+
+        // ---- set_timer_value / get_timer_value -----------------------------
+        // AcPower round-trip with the shared REQUESTED constant.
+        set_timer_value(AcpiTimerId::AcPower, AlarmTimerSeconds(REQUESTED))
+                                                    => ( is_ok );
+        get_timer_value(AcpiTimerId::AcPower) -> |w| w.0
+                                                    => ( ok_in REQUESTED.saturating_sub(5)..=REQUESTED );
+        // DcPower with a distinct value to ensure the two timers are
+        // independent.
+        set_timer_value(AcpiTimerId::DcPower, AlarmTimerSeconds(120))
+                                                    => ( is_ok );
+        get_timer_value(AcpiTimerId::DcPower) -> |w| w.0
+                                                    => ( ok_in 115u32..=120 );
+        // Round-trip with 0 (often a "disabled" sentinel).
+        set_timer_value(AcpiTimerId::AcPower, AlarmTimerSeconds(0))
+                                                    => ( is_ok );
+        get_timer_value(AcpiTimerId::AcPower) -> |w| w.0
+                                                    => ( ok_eq 0u32 );
+
+        // ---- get_wake_status / clear_wake_status ---------------------------
+        // After clearing, neither bit should be set on either timer.
+        clear_wake_status(AcpiTimerId::AcPower)     => ( eq () );
+        clear_wake_status(AcpiTimerId::DcPower)     => ( eq () );
+        get_wake_status(AcpiTimerId::AcPower)       => ( pred |s| !s.timer_expired() );
+        get_wake_status(AcpiTimerId::AcPower)       => ( pred |s| !s.timer_triggered_wake() );
+        get_wake_status(AcpiTimerId::DcPower)       => ( pred |s| !s.timer_expired() );
+        get_wake_status(AcpiTimerId::DcPower)       => ( pred |s| !s.timer_triggered_wake() );
+    });
+}

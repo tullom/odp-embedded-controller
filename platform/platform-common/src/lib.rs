@@ -2,6 +2,7 @@
 pub mod board;
 #[cfg(feature = "mock")]
 pub mod mock;
+pub mod test;
 
 /// Defines an ODP MCTP relay handler with the standard service IDs and relay types.
 ///
