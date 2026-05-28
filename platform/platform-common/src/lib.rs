@@ -2,7 +2,11 @@
 pub mod board;
 #[cfg(feature = "mock")]
 pub mod mock;
-pub mod test;
+
+/// Re-export of the on-target self-test DSL crate. New code should prefer
+/// `embedded_service_test::*` directly; this alias exists so existing
+/// `platform_common::test::TestRunner` paths keep working.
+pub use embedded_service_test as test;
 
 /// Defines an ODP MCTP relay handler with the standard service IDs and relay types.
 ///

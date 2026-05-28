@@ -66,6 +66,7 @@ embassy-futures = "0.1.2"
 [features]
 default = []
 teleprobe-test = ["dep:teleprobe-meta"]
+test-runner = []
 
 [package.metadata.cargo-machete]
 ignored = ["cortex-m", "cortex-m-rt"]

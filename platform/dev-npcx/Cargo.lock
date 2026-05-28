@@ -603,6 +603,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-service-test"
+version = "0.1.0"
+dependencies = [
+ "defmt 0.3.100",
+ "embassy-time",
+]
+
+[[package]]
 name = "embedded-services"
 version = "0.1.0"
 source = "git+https://github.com/OpenDevicePartnership/embedded-services?branch=main#62d4ea9a87588c6096e1c2f149ac3263064cbde9"
@@ -949,6 +957,7 @@ dependencies = [
  "embedded-io-async 0.7.0",
  "embedded-mcu-hal",
  "embedded-sensors-hal-async",
+ "embedded-service-test",
  "embedded-services",
  "odp-service-common",
  "static_cell",
